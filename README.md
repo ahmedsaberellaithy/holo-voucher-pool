@@ -88,10 +88,8 @@ docker-compose -f docker-compose.dev.yml down
 
 #### Features:
 
-- Hot reload enabled
-- Source code mounted as volume
+- Hot reload enabled (Source code mounted as volume)
 - Swagger API docs
-- Node modules mounted as volume
 
 #### API Documentation
 
