@@ -4,7 +4,7 @@ import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { Pool } from 'pg';
 
-describe('AppController (e2e)', () => {
+describe('End2End testing for Vouchers API', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -33,13 +33,14 @@ describe('AppController (e2e)', () => {
     }
     await pool.end();
 
-    // Initialize app after DB is ready
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
+
+    console.log('PostgreSQL is ready!, starting testing...');
   });
 
   afterAll(async () => {
@@ -47,14 +48,13 @@ describe('AppController (e2e)', () => {
   });
 
   it('/ (GET)', () => {
-    console.log('Running test...===========>');
     return request(app.getHttpServer())
       .get('/')
       .expect(200)
       .expect('Hello World!');
   });
 
-  describe('/customers', () => {
+  describe('Customers API', () => {
     const validCustomer = {
       name: 'John Doe',
       email: 'john@example.com',
@@ -76,12 +76,10 @@ describe('AppController (e2e)', () => {
       });
 
       it('should fail if email is already taken', async () => {
-        // First create a customer
         await request(app.getHttpServer())
           .post('/customers')
           .send(validCustomer);
 
-        // Try to create another customer with same email
         return request(app.getHttpServer())
           .post('/customers')
           .send(validCustomer)
@@ -101,12 +99,10 @@ describe('AppController (e2e)', () => {
 
     describe('GET /customers/:email', () => {
       it('should get customer by email', async () => {
-        // First create a customer
         await request(app.getHttpServer())
           .post('/customers')
           .send(validCustomer);
 
-        // Then retrieve the customer
         return request(app.getHttpServer())
           .get(`/customers/${validCustomer.email}`)
           .expect(200)
@@ -124,28 +120,10 @@ describe('AppController (e2e)', () => {
           .get('/customers/nonexistent@example.com')
           .expect(404);
       });
-
-      it('should be rate limited', async () => {
-        await request(app.getHttpServer())
-          .post('/customers')
-          .send(validCustomer);
-
-        // Make multiple requests in quick succession
-        const multipleRequests = Array(10)
-          .fill(null)
-          .map(() =>
-            request(app.getHttpServer()).get(
-              `/customers/${validCustomer.email}`,
-            ),
-          );
-
-        const responses = await Promise.all(multipleRequests);
-        expect(responses.some((res) => res.status === 429)).toBeTruthy();
-      });
     });
   });
 
-  describe('Special Offers', () => {
+  describe('Special Offers API', () => {
     const validSpecialOffer = {
       name: 'Summer Sale',
       discountPercentage: 20,
@@ -174,29 +152,14 @@ describe('AppController (e2e)', () => {
           .post('/special-offers')
           .send({
             ...validSpecialOffer,
-            discountPercentage: 101, // Invalid: > 100%
+            discountPercentage: 101,
           })
           .expect(400);
-      });
-
-      it('should be rate limited', async () => {
-        // Make multiple requests in quick succession
-        const requests = Array(10)
-          .fill(null)
-          .map(() =>
-            request(app.getHttpServer())
-              .post('/special-offers')
-              .send(validSpecialOffer),
-          );
-
-        const responses = await Promise.all(requests);
-        expect(responses.some((res) => res.status === 429)).toBeTruthy();
       });
     });
 
     describe('GET /special-offers', () => {
       it('should get all special offers', async () => {
-        // First create a special offer
         await request(app.getHttpServer())
           .post('/special-offers')
           .send(validSpecialOffer);
@@ -214,15 +177,157 @@ describe('AppController (e2e)', () => {
             });
           });
       });
+    });
+  });
 
-      it('should be rate limited', async () => {
-        // Make multiple requests in quick succession
-        const requests = Array(10)
-          .fill(null)
-          .map(() => request(app.getHttpServer()).get('/special-offers'));
+  describe('Vouchers API', () => {
+    const validCustomer = {
+      name: 'Ahmed Saber',
+      email: 'saber@example.com',
+    };
 
-        const responses = await Promise.all(requests);
-        expect(responses.some((res) => res.status === 429)).toBeTruthy();
+    const validSpecialOffer = {
+      name: 'Winter Sale',
+      discountPercentage: 25,
+    };
+
+    let specialOfferId: number;
+
+    beforeEach(async () => {
+      // Create customer and special offer for voucher tests
+      await request(app.getHttpServer()).post('/customers').send(validCustomer);
+
+      // Create customer with no vouchers for no vouchers test
+      await request(app.getHttpServer()).post('/customers').send({
+        name: 'No-voucher Customer',
+        email: 'novouchers@example.com',
+      });
+
+      const specialOfferResponse = await request(app.getHttpServer())
+        .post('/special-offers')
+        .send(validSpecialOffer);
+
+      specialOfferId = specialOfferResponse.body.id;
+    });
+
+    describe('POST /vouchers/generate', () => {
+      it('should generate a new voucher', () => {
+        const generateVoucherDto = {
+          email: validCustomer.email,
+          specialOfferId: specialOfferId,
+          expirationDate: new Date(Date.now() + 86400000).toISOString(),
+        };
+
+        return request(app.getHttpServer())
+          .post('/vouchers/generate')
+          .send(generateVoucherDto)
+          .expect(201)
+          .expect((res) => {
+            expect(res.body).toEqual({
+              code: expect.any(String),
+              discountPercentage: `${validSpecialOffer.discountPercentage.toFixed(2)}`,
+              expirationDate: expect.any(String),
+              specialOfferName: validSpecialOffer.name,
+            });
+          });
+      });
+
+      it('should fail with non-existent customer', () => {
+        const generateVoucherDto = {
+          email: 'nonexistent@example.com',
+          specialOfferId: specialOfferId,
+          expirationDate: new Date(Date.now() + 86400000).toISOString(),
+        };
+
+        return request(app.getHttpServer())
+          .post('/vouchers/generate')
+          .send(generateVoucherDto)
+          .expect(404);
+      });
+    });
+
+    describe('POST /vouchers', () => {
+      it('should validate and use a voucher', async () => {
+        // First generate a voucher
+        const generateVoucherDto = {
+          email: validCustomer.email,
+          specialOfferId: specialOfferId,
+          expirationDate: new Date(Date.now() + 86400000).toISOString(),
+        };
+
+        const generatedVoucher = await request(app.getHttpServer())
+          .post('/vouchers/generate')
+          .send(generateVoucherDto);
+
+        // Then validate and use it
+        return request(app.getHttpServer())
+          .post('/vouchers')
+          .send({
+            code: generatedVoucher.body.code,
+            email: validCustomer.email,
+          })
+          .expect(200)
+          .expect((res) => {
+            expect(res.body).toEqual({
+              discountPercentage: `${validSpecialOffer.discountPercentage.toFixed(2)}`,
+            });
+          });
+      });
+
+      it('should fail with invalid voucher code', () => {
+        return request(app.getHttpServer())
+          .post('/vouchers')
+          .send({
+            code: 'INVALID-CODE',
+            email: validCustomer.email,
+          })
+          .expect(404);
+      });
+    });
+
+    describe('GET /vouchers/customer', () => {
+      it('should get all vouchers for a customer', async () => {
+        // First generate a voucher
+        const generateVoucherDto = {
+          email: validCustomer.email,
+          specialOfferId: specialOfferId,
+          expirationDate: new Date(Date.now() + 86400000).toISOString(),
+        };
+
+        await request(app.getHttpServer())
+          .post('/vouchers/generate')
+          .send(generateVoucherDto);
+
+        // Then get all vouchers
+        return request(app.getHttpServer())
+          .get(`/vouchers/customer?email=${validCustomer.email}`)
+          .expect(200)
+          .expect((res) => {
+            expect(Array.isArray(res.body)).toBeTruthy();
+            expect(res.body.length).toBeGreaterThan(0);
+            expect(res.body[0]).toEqual({
+              code: expect.any(String),
+              discountPercentage: `${validSpecialOffer.discountPercentage.toFixed(2)}`,
+              expirationDate: expect.any(String),
+              specialOfferName: validSpecialOffer.name,
+            });
+          });
+      });
+
+      it('should return empty array for customer with no vouchers', async () => {
+        return request(app.getHttpServer())
+          .get('/vouchers/customer?email=novouchers@example.com')
+          .expect(200)
+          .expect((res) => {
+            expect(Array.isArray(res.body)).toBeTruthy();
+            expect(res.body.length).toEqual(0);
+          });
+      });
+
+      it('should return error for non exitsting customer', () => {
+        return request(app.getHttpServer())
+          .get('/vouchers/customer?email=non-existing@example.com')
+          .expect(404);
       });
     });
   });

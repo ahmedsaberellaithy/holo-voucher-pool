@@ -1,18 +1,18 @@
 # Production configuration
 services:
-  postgres:
+  postgres-prod:
     image: postgres:15
-    container_name: postgres-db
+    container_name: postgres-db-prod
     restart: always
     environment:
-      POSTGRES_USER: database_psql_user
-      POSTGRES_PASSWORD: 'database_pass_123'
-      POSTGRES_DB: vouchers-db
+      POSTGRES_USER: db-prod-user
+      POSTGRES_PASSWORD: 'db-prod-user-strong-pass'
+      POSTGRES_DB: vouchers-db-prod
     ports:
       - '5432:5432'
     volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
-    hostname: postgres-db
+      - postgres_data_prod:/var/lib/postgresql/data
+    hostname: postgres-db-prod
 
   nestjs_app:
     build:
@@ -25,14 +25,14 @@ services:
     environment:
       NODE_ENV: production
       PSQL_DB_PORT: 5432
-      PSQL_DB_HOST: postgres-db
-      PSQL_DB_USER: database_psql_user
-      PSQL_DB_PASSWORD: 'database_pass_123'
-      PSQL_DB_NAME: vouchers-db
+      PSQL_DB_HOST: postgres-db-prod
+      PSQL_DB_USER: db-prod-user
+      PSQL_DB_PASSWORD: 'db-prod-user-strong-pass'
+      PSQL_DB_NAME: vouchers-db-prod
       THROTTLE_TTL: ${THROTTLE_TTL:-1000}
-      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-10}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
     depends_on:
-      - postgres
+      - postgres-prod
 
 volumes:
-  postgres_data_dev: 
+  postgres_data_prod: 

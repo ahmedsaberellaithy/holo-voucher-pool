@@ -1,9 +1,9 @@
-> Hint, to be honest, AI did a great job here, so for the what matters, faster to check (Features, Docker Setup -> API Documentation, Rate Limiting)
+> Hint, to be honest, AI did a great job here, so for the what matters go directly to (Features, Docker Setup -> API Documentation, Rate Limiting & end to end testing)
 
 ## Description
 
 Voucher Pool API with NestJS  
-A REST API built using NestJS and PostgreSQL for managing voucher pools. This API allows businesses to create and validate voucher codes for customers to receive special discounts.
+A REST API built using NestJS and PostgreSQL for managing vouchers. This API allows businesses to create and validate voucher codes for customers to receive special discounts.
 
 ## Features
 
@@ -13,55 +13,9 @@ A REST API built using NestJS and PostgreSQL for managing voucher pools. This AP
 - **Rate Limiting** to protect against brute-force attacks.
 - Modular and scalable architecture.
 - Follows best practices with TypeScript, ESLint, and Prettier.
-
-## Project Structure
-
-```plaintext
-src/
-├── customers/
-│   ├── customer.entity.ts        # Customer entity definition
-│   ├── customers.controller.ts   # REST endpoints for customers
-│   ├── customers.module.ts       # NestJS module for customers
-│   └── customers.service.ts      # Business logic for customers
-├── special-offers/
-│   ├── special-offer.entity.ts   # Special offer entity definition
-│   ├── special-offers.controller.ts # REST endpoints for special offers
-│   ├── special-offers.module.ts  # NestJS module for special offers
-│   └── special-offers.service.ts # Business logic for special offers
-├── vouchers/
-│   ├── voucher.entity.ts         # Voucher entity definition
-│   ├── vouchers.controller.ts    # REST endpoints for vouchers
-│   ├── vouchers.module.ts        # NestJS module for vouchers
-│   └── vouchers.service.ts       # Business logic for vouchers
-```
-
-## Database Schema
-
-```plaintext
-customers
-├── id (INTEGER)
-├── email (VARCHAR, unique)
-├── name (VARCHAR)
-├── created_at (TIMESTAMP)
-└── updated_at (TIMESTAMP)
-
-special_offers
-├── id (INTEGER)
-├── name (VARCHAR)
-├── discount_percentage (DECIMAL(5,2))
-├── created_at (TIMESTAMP)
-└── updated_at (TIMESTAMP)
-
-vouchers
-├── id (INTEGER)
-├── code (VARCHAR, unique)
-├── customer (FOREIGN KEY)
-├── special_offer (FOREIGN KEY)
-├── expiration_date (TIMESTAMP)
-├── date_used (TIMESTAMP, nullable)
-├── created_at (TIMESTAMP)
-└── updated_at (TIMESTAMP)
-```
+- **Dockerized** for easy deployment.
+- **API Documentation** with Swagger.
+- **End-to-End Testing** with a test container for the database.
 
 ### Prerequisites
 
@@ -94,9 +48,11 @@ $ npm run start:prod
 # unit tests
 $ npm run test
 
-# test coverage
+# test coverage > to be improved more
 $ npm run test:cov
 ```
+
+![image|width=200](./test-coverage-results.png)
 
 ## Run tests (E2E using a test container for the Database)
 
@@ -107,12 +63,14 @@ This test container will spin up a PostgreSQL database and run the end to end se
 npm run test:ci
 ```
 
-The test:ci command will:
+The `test:ci` command will:
 
 1. Start the test containers
 1. Run all E2E tests
 1. Display test results
 1. Automatically clean up by removing db container
+
+![image|width=200](./e2e-test-results.png)
 
 ## Docker Setup
 
@@ -128,7 +86,7 @@ docker-compose -f docker-compose.dev.yml up -d
 docker-compose -f docker-compose.dev.yml down
 ```
 
-Features:
+#### Features:
 
 - Hot reload enabled
 - Source code mounted as volume
@@ -155,36 +113,26 @@ docker-compose up -d
 docker-compose down
 ```
 
-Features:
+#### Features:
 
 - Optimized for production use
 - No source code mounting
 - No Swagger API docs
 - No development dependencies
 
-## Error Handling
-
-The API uses standard HTTP status codes and returns error responses in the following format:
-
-```json
-{
-  "statusCode": 400,
-  "message": "Error message here",
-  "error": "Bad Request"
-}
-```
-
-## Installation
+## Quick Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/voucher-pool-api.git
+git clone https://github.com/ahmedsaberellaithy/holo-voucher-pool.git
 
 # Change directory
-cd voucher-pool-api
+cd holo-voucher-pool
 
-# Install dependencies
+# Install dependencies or skip this and directly use docker-compose
 npm install
+# Build the Docker image
+docker-compose up --build
 ```
 
 ## Environment Variables

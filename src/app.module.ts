@@ -8,7 +8,6 @@ import { SpecialOffersModule } from './special-offers/special-offers.module';
 import { VouchersModule } from './vouchers/vouchers.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
-const PROD_ENV_NAME = 'production';
 const DEFAULT_THROTTLE_TTL = 1000; // 1 second
 const DEFAULT_THROTTLE_LIMIT = 10; // 10 requests per second
 
@@ -24,7 +23,7 @@ const DEFAULT_THROTTLE_LIMIT = 10; // 10 requests per second
         password: process.env.PSQL_DB_PASSWORD,
         database: process.env.PSQL_DB_NAME,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: process.env.NODE_ENV !== PROD_ENV_NAME,
+        synchronize: true,
       }),
     }),
     ThrottlerModule.forRoot([

@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { CustomThrottlerGuard } from '../common/guards/throttle.guard';
 import { VouchersService } from './vouchers.service';
@@ -44,6 +52,7 @@ export class VouchersController {
   }
 
   @Post('')
+  @HttpCode(200)
   @ApiOperation({ summary: 'Validate and use a voucher' })
   @ApiResponse({
     status: 200,
