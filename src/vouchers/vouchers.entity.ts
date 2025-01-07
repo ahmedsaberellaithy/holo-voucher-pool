@@ -5,6 +5,7 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { Customer } from '../customers/customers.entity';
 import { SpecialOffer } from '../special-offers/special-offers.entity';
@@ -17,10 +18,18 @@ export class VoucherCode {
   @Column({ unique: true })
   code: string;
 
-  @ManyToOne(() => Customer, { nullable: false })
+  @Column({ name: 'customer_id' })
+  customerId: number;
+
+  @Column({ name: 'special_offer_id' })
+  specialOfferId: number;
+
+  @ManyToOne(() => Customer)
+  @JoinColumn({ name: 'customer_id' })
   customer: Customer;
 
-  @ManyToOne(() => SpecialOffer, { nullable: false })
+  @ManyToOne(() => SpecialOffer)
+  @JoinColumn({ name: 'special_offer_id' })
   specialOffer: SpecialOffer;
 
   @Column('timestamp')

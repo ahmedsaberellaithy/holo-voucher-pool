@@ -6,6 +6,7 @@ import {
   GenerateVoucherDto,
   VoucherResponseDto,
 } from './dto/generate-voucher.dto';
+import { ValidVoucherDto } from './dto/validate-voucher.dto';
 
 @ApiTags('vouchers')
 @UseGuards(CustomThrottlerGuard)
@@ -55,13 +56,10 @@ export class VouchersController {
   })
   @ApiResponse({ status: 404, description: 'Voucher not found' })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
-  async validateAndUseVoucher(
-    @Body('code') code: string,
-    @Body('email') email: string,
-  ) {
+  async validateAndUseVoucher(@Body() validateVoucherDto: ValidVoucherDto) {
     const discountPercentage = await this.vouchersService.validateAndUseVoucher(
-      code,
-      email,
+      validateVoucherDto.code,
+      validateVoucherDto.email,
     );
     return { discountPercentage };
   }

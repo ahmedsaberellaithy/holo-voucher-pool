@@ -58,7 +58,14 @@ export class VouchersService {
       async (transactionalEntityManager) => {
         const voucher = await transactionalEntityManager.findOne(VoucherCode, {
           where: { code },
-          relations: ['customer', 'specialOffer'],
+          select: [
+            'id',
+            'code',
+            'dateUsed',
+            'expirationDate',
+            'customerId',
+            'specialOfferId',
+          ],
           lock: { mode: 'pessimistic_write' },
         });
 
@@ -66,7 +73,12 @@ export class VouchersService {
           throw new NotFoundException('Voucher not found');
         }
 
-        if (voucher.customer.email !== email) {
+        const customer = await this.customersService.findOneByEmail(email);
+        const specialOffer = await this.specialOffersService.findOne(
+          voucher.specialOfferId,
+        );
+
+        if (customer.id !== voucher.customerId) {
           throw new UnauthorizedException(
             'This voucher belongs to another customer',
           );
@@ -83,7 +95,7 @@ export class VouchersService {
         voucher.dateUsed = new Date();
         await transactionalEntityManager.save(VoucherCode, voucher);
 
-        return voucher.specialOffer.discountPercentage;
+        return specialOffer.discountPercentage;
       },
     );
   }

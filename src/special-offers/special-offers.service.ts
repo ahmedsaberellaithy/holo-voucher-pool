@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SpecialOffer } from './special-offers.entity';
+import { CreateSpecialOfferDto } from './dto/create-special-offer.dto';
 
 @Injectable()
 export class SpecialOffersService {
@@ -20,5 +21,14 @@ export class SpecialOffersService {
       throw new NotFoundException(`Special offer with ID ${id} not found`);
     }
     return offer;
+  }
+
+  async create(createSpecialOfferDto: CreateSpecialOfferDto) {
+    const specialOffer = this.specialOffersRepository.create(
+      createSpecialOfferDto,
+    );
+    await this.specialOffersRepository.save(specialOffer);
+
+    return specialOffer;
   }
 }
