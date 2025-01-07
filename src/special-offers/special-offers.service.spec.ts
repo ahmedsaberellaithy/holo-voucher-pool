@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SpecialOffersService } from './special-offers.service';
 import { SpecialOffer } from './special-offers.entity';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('SpecialOffersService', () => {
   let service: SpecialOffersService;
@@ -26,6 +26,8 @@ describe('SpecialOffersService', () => {
           useValue: {
             find: jest.fn(),
             findOneBy: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
           },
         },
       ],
@@ -47,7 +49,13 @@ describe('SpecialOffersService', () => {
       jest.spyOn(repository, 'find').mockResolvedValue(mockOffers);
 
       const result = await service.findAll();
-      expect(result).toEqual(mockOffers);
+      expect(result).toEqual([
+        {
+          id: mockSpecialOffer.id,
+          name: mockSpecialOffer.name,
+          discountPercentage: mockSpecialOffer.discountPercentage,
+        },
+      ]);
     });
   });
 
@@ -63,6 +71,47 @@ describe('SpecialOffersService', () => {
       jest.spyOn(repository, 'findOneBy').mockResolvedValue(null);
 
       await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('create', () => {
+    it('should create a special offer', async () => {
+      const createDto = {
+        name: 'New Offer',
+        discountPercentage: 30,
+      };
+
+      jest.spyOn(repository, 'create').mockReturnValue(mockSpecialOffer);
+      jest.spyOn(repository, 'save').mockResolvedValue(mockSpecialOffer);
+
+      const result = await service.create(createDto);
+      expect(result).toEqual({
+        id: mockSpecialOffer.id,
+        name: mockSpecialOffer.name,
+        discountPercentage: mockSpecialOffer.discountPercentage,
+      });
+    });
+
+    it('should throw BadRequestException when name is empty', async () => {
+      const createDto = {
+        name: '',
+        discountPercentage: 30,
+      };
+
+      await expect(service.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException when discount percentage is invalid', async () => {
+      const createDto = {
+        name: 'New Offer',
+        discountPercentage: 150,
+      };
+
+      await expect(service.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

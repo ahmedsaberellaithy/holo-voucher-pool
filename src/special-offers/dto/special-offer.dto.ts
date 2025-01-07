@@ -9,10 +9,4 @@ export class SpecialOfferDto {
 
   @ApiProperty({ example: 25.0 })
   discountPercentage: number;
-
-  @ApiProperty()
-  createdAt: Date;
-
-  @ApiProperty()
-  updatedAt: Date;
 }

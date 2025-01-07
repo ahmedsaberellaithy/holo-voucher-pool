@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SpecialOffersController } from './special-offers.controller';
 import { SpecialOffersService } from './special-offers.service';
-import { NotFoundException } from '@nestjs/common';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { CustomThrottlerGuard } from '../common/guards/throttle.guard';
@@ -65,21 +64,6 @@ describe('SpecialOffersController', () => {
 
       const result = await controller.findAll();
       expect(result).toEqual(mockOffers);
-    });
-  });
-
-  describe('findOne', () => {
-    it('should return a special offer by id', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockSpecialOffer);
-
-      const result = await controller.findOne(1);
-      expect(result).toEqual(mockSpecialOffer);
-    });
-
-    it('should throw NotFoundException when special offer not found', async () => {
-      jest.spyOn(service, 'findOne').mockRejectedValue(new NotFoundException());
-
-      await expect(controller.findOne(999)).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SpecialOffer } from './special-offers.entity';
@@ -11,8 +15,20 @@ export class SpecialOffersService {
     private specialOffersRepository: Repository<SpecialOffer>,
   ) {}
 
-  async findAll(): Promise<SpecialOffer[]> {
-    return this.specialOffersRepository.find();
+  async findAll(): Promise<
+    Array<{
+      id: number;
+      name: string;
+      discountPercentage: number;
+    }>
+  > {
+    const specialOffers = await this.specialOffersRepository.find();
+
+    return specialOffers.map((specialOffers) => ({
+      id: specialOffers.id,
+      name: specialOffers.name,
+      discountPercentage: specialOffers.discountPercentage,
+    }));
   }
 
   async findOne(id: number): Promise<SpecialOffer> {
@@ -23,12 +39,33 @@ export class SpecialOffersService {
     return offer;
   }
 
-  async create(createSpecialOfferDto: CreateSpecialOfferDto) {
-    const specialOffer = this.specialOffersRepository.create(
-      createSpecialOfferDto,
-    );
-    await this.specialOffersRepository.save(specialOffer);
+  async create(createSpecialOfferDto: CreateSpecialOfferDto): Promise<{
+    id: number;
+    name: string;
+    discountPercentage: number;
+  }> {
+    // Validate required fields
+    if (!createSpecialOfferDto.name?.trim()) {
+      throw new BadRequestException('Name is required');
+    }
 
-    return specialOffer;
+    // Validate discount percentage range
+    if (
+      createSpecialOfferDto.discountPercentage < 0 ||
+      createSpecialOfferDto.discountPercentage > 100
+    ) {
+      throw new BadRequestException(
+        'Discount percentage must be between 0 and 100',
+      );
+    }
+
+    const newOffer = this.specialOffersRepository.create(createSpecialOfferDto);
+    const specialOffer = await this.specialOffersRepository.save(newOffer);
+
+    return {
+      id: specialOffer.id,
+      name: specialOffer.name,
+      discountPercentage: specialOffer.discountPercentage,
+    };
   }
 }

@@ -13,7 +13,7 @@ export class CustomersService {
   constructor(
     @InjectRepository(Customer)
     private customersRepository: Repository<Customer>,
-  ) { }
+  ) {}
 
   async create(createCustomerDto: {
     name: string;

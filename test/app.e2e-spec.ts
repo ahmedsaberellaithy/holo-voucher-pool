@@ -124,6 +124,106 @@ describe('AppController (e2e)', () => {
           .get('/customers/nonexistent@example.com')
           .expect(404);
       });
+
+      it('should be rate limited', async () => {
+        await request(app.getHttpServer())
+          .post('/customers')
+          .send(validCustomer);
+
+        // Make multiple requests in quick succession
+        const multipleRequests = Array(10)
+          .fill(null)
+          .map(() =>
+            request(app.getHttpServer()).get(
+              `/customers/${validCustomer.email}`,
+            ),
+          );
+
+        const responses = await Promise.all(multipleRequests);
+        expect(responses.some((res) => res.status === 429)).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Special Offers', () => {
+    const validSpecialOffer = {
+      name: 'Summer Sale',
+      discountPercentage: 20,
+    };
+
+    describe('POST /special-offers', () => {
+      it('should create a new special offer', () => {
+        return request(app.getHttpServer())
+          .post('/special-offers')
+          .send(validSpecialOffer)
+          .expect(201)
+          .expect((res) => {
+            expect(res.body).toEqual({
+              id: expect.any(Number),
+              name: validSpecialOffer.name,
+              discountPercentage: expect.closeTo(
+                validSpecialOffer.discountPercentage,
+                2,
+              ),
+            });
+          });
+      });
+
+      it('should fail with invalid discount percentage', () => {
+        return request(app.getHttpServer())
+          .post('/special-offers')
+          .send({
+            ...validSpecialOffer,
+            discountPercentage: 101, // Invalid: > 100%
+          })
+          .expect(400);
+      });
+
+      it('should be rate limited', async () => {
+        // Make multiple requests in quick succession
+        const requests = Array(10)
+          .fill(null)
+          .map(() =>
+            request(app.getHttpServer())
+              .post('/special-offers')
+              .send(validSpecialOffer),
+          );
+
+        const responses = await Promise.all(requests);
+        expect(responses.some((res) => res.status === 429)).toBeTruthy();
+      });
+    });
+
+    describe('GET /special-offers', () => {
+      it('should get all special offers', async () => {
+        // First create a special offer
+        await request(app.getHttpServer())
+          .post('/special-offers')
+          .send(validSpecialOffer);
+
+        return request(app.getHttpServer())
+          .get('/special-offers')
+          .expect(200)
+          .expect((res) => {
+            expect(Array.isArray(res.body)).toBeTruthy();
+            expect(res.body.length).toBeGreaterThan(0);
+            expect(res.body[0]).toMatchObject({
+              id: expect.any(Number),
+              name: validSpecialOffer.name,
+              discountPercentage: `${validSpecialOffer.discountPercentage.toFixed(2)}`,
+            });
+          });
+      });
+
+      it('should be rate limited', async () => {
+        // Make multiple requests in quick succession
+        const requests = Array(10)
+          .fill(null)
+          .map(() => request(app.getHttpServer()).get('/special-offers'));
+
+        const responses = await Promise.all(requests);
+        expect(responses.some((res) => res.status === 429)).toBeTruthy();
+      });
     });
   });
 });

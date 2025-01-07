@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseIntPipe,
-  UseGuards,
-  Post,
-  Body,
-} from '@nestjs/common';
+import { Controller, Get, UseGuards, Post, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CustomThrottlerGuard } from '../common/guards/throttle.guard';
 import { SpecialOffersService } from './special-offers.service';
@@ -31,18 +23,6 @@ export class SpecialOffersController {
     return this.specialOffersService.findAll();
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a special offer by ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'The found special offer',
-    type: SpecialOfferDto,
-  })
-  @ApiResponse({ status: 404, description: 'Special offer not found' })
-  @ApiResponse({ status: 429, description: 'Too Many Requests' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.specialOffersService.findOne(id);
-  }
   @Post()
   @ApiOperation({ summary: 'Create a new special offer' })
   @ApiResponse({
