@@ -21,18 +21,25 @@ export class VouchersController {
     description: 'Voucher generated successfully',
     type: VoucherResponseDto,
   })
-  @ApiResponse({ status: 404, description: 'Customer not found' })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer not found or Special offer not found',
+  })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
-  async generateVoucher(@Body() generateVoucherDto: GenerateVoucherDto) {
+  async generateVoucher(
+    @Body() generateVoucherDto: GenerateVoucherDto,
+  ): Promise<VoucherResponseDto> {
     const voucher = await this.vouchersService.generateVoucher(
       generateVoucherDto.email,
       generateVoucherDto.specialOfferId,
+      generateVoucherDto.expirationDate,
     );
 
     return {
       code: voucher.code,
-      discountPercentage: voucher.specialOffer.discountPercentage,
+      discountPercentage: voucher.discountPercentage,
       expirationDate: voucher.expirationDate,
+      specialOfferName: voucher.specialOfferName,
     };
   }
 
@@ -40,7 +47,7 @@ export class VouchersController {
   @ApiOperation({ summary: 'Validate and use a voucher' })
   @ApiResponse({
     status: 200,
-    description: 'Voucher validated successfully',
+    description: 'Voucher validated & activated successfully',
     schema: {
       properties: {
         discountPercentage: {
@@ -54,9 +61,15 @@ export class VouchersController {
     status: 401,
     description: 'Unauthorized - Invalid voucher ownership',
   })
+  @ApiResponse({
+    status: 400,
+    description: 'This voucher has already been used',
+  })
   @ApiResponse({ status: 404, description: 'Voucher not found' })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
-  async validateAndUseVoucher(@Body() validateVoucherDto: ValidVoucherDto) {
+  async validateAndUseVoucher(
+    @Body() validateVoucherDto: ValidVoucherDto,
+  ): Promise<{ discountPercentage: number }> {
     const discountPercentage = await this.vouchersService.validateAndUseVoucher(
       validateVoucherDto.code,
       validateVoucherDto.email,
@@ -72,15 +85,21 @@ export class VouchersController {
     description: 'List of customer vouchers',
     type: [VoucherResponseDto],
   })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer not found',
+  })
   @ApiResponse({ status: 429, description: 'Too Many Requests' })
-  async getCustomerVouchers(@Query('email') email: string) {
+  async getCustomerVouchers(
+    @Query('email') email: string,
+  ): Promise<VoucherResponseDto[]> {
     const vouchers = await this.vouchersService.findAllByCustomerEmail(email);
+
     return vouchers.map((voucher) => ({
       code: voucher.code,
       discountPercentage: voucher.specialOffer.discountPercentage,
       expirationDate: voucher.expirationDate,
-      dateUsed: voucher.dateUsed,
-      specialOffer: voucher.specialOffer,
+      specialOfferName: voucher.specialOffer.name,
     }));
   }
 }

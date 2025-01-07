@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
+  GoneException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { VoucherCode } from './vouchers.entity';
 import { CustomersService } from '../customers/customers.service';
 import { SpecialOffersService } from '../special-offers/special-offers.service';
@@ -30,27 +32,42 @@ export class VouchersService {
   async generateVoucher(
     email: string,
     specialOfferId: number,
-  ): Promise<VoucherCode> {
-    return this.vouchersRepository.manager.transaction(
-      async (transactionalEntityManager) => {
-        const customer = await this.customersService.findOneByEmail(email);
-        const specialOffer =
-          await this.specialOffersService.findOne(specialOfferId);
+    expirationDate: Date,
+  ): Promise<{
+    code: string;
+    discountPercentage: number;
+    expirationDate: Date;
+    specialOfferName: string;
+  }> {
+    const customer = await this.customersService.findOneByEmail(email);
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
 
-        const code = this.generateUniqueCode();
-        const expirationDate = new Date();
-        expirationDate.setMonth(expirationDate.getMonth() + 1);
+    const specialOffer =
+      await this.specialOffersService.findOne(specialOfferId);
 
-        const voucher = transactionalEntityManager.create(VoucherCode, {
-          code,
-          customer,
-          specialOffer,
-          expirationDate,
-        });
+    if (!specialOffer) {
+      throw new NotFoundException('Special offer not found');
+    }
 
-        return transactionalEntityManager.save(VoucherCode, voucher);
-      },
-    );
+    const code = this.generateUniqueCode();
+
+    const voucher = this.vouchersRepository.create({
+      code,
+      customer,
+      specialOffer,
+      expirationDate,
+    });
+
+    const savedVoucher = await this.vouchersRepository.save(voucher);
+
+    return {
+      code: savedVoucher.code,
+      discountPercentage: specialOffer.discountPercentage,
+      expirationDate: savedVoucher.expirationDate,
+      specialOfferName: specialOffer.name,
+    };
   }
 
   async validateAndUseVoucher(code: string, email: string): Promise<number> {
@@ -74,9 +91,9 @@ export class VouchersService {
         }
 
         const customer = await this.customersService.findOneByEmail(email);
-        const specialOffer = await this.specialOffersService.findOne(
-          voucher.specialOfferId,
-        );
+        if (!customer) {
+          throw new NotFoundException('Customer not found');
+        }
 
         if (customer.id !== voucher.customerId) {
           throw new UnauthorizedException(
@@ -84,12 +101,20 @@ export class VouchersService {
           );
         }
 
+        const specialOffer = await this.specialOffersService.findOne(
+          voucher.specialOfferId,
+        );
+        if (!specialOffer) {
+          throw new NotFoundException('Special offer not found');
+        }
+
         if (voucher.dateUsed) {
-          throw new UnauthorizedException('This voucher has already been used');
+          throw new BadRequestException('This voucher has already been used');
         }
 
         if (voucher.expirationDate < new Date()) {
-          throw new UnauthorizedException('This voucher has expired');
+          // not sure if 410 Gone is the best choice here
+          throw new GoneException('This voucher has expired');
         }
 
         voucher.dateUsed = new Date();
@@ -101,9 +126,23 @@ export class VouchersService {
   }
 
   async findAllByCustomerEmail(email: string): Promise<VoucherCode[]> {
+    const customer = await this.customersService.findOneByEmail(email);
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
     return this.vouchersRepository.find({
-      where: { customer: { email } },
+      where: {
+        customerId: customer.id,
+        dateUsed: IsNull(),
+      },
       relations: ['specialOffer'],
+      select: {
+        specialOffer: {
+          name: true,
+          discountPercentage: true,
+        },
+      },
     });
   }
 }

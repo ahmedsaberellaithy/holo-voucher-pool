@@ -47,6 +47,7 @@ describe('VouchersController', () => {
         {
           provide: VouchersService,
           useValue: {
+            generateVoucher: jest.fn(),
             validateAndUseVoucher: jest.fn(),
             findAllByCustomerEmail: jest.fn(),
           },
@@ -66,10 +67,10 @@ describe('VouchersController', () => {
     it('should validate and use a voucher successfully', async () => {
       jest.spyOn(service, 'validateAndUseVoucher').mockResolvedValue(25.0);
 
-      const result = await controller.validateAndUseVoucher(
-        'TEST123',
-        'test@example.com',
-      );
+      const result = await controller.validateAndUseVoucher({
+        code: 'TEST123',
+        email: 'test@example.com',
+      });
       expect(result).toEqual({ discountPercentage: 25.0 });
     });
 
@@ -79,7 +80,10 @@ describe('VouchersController', () => {
         .mockRejectedValue(new UnauthorizedException());
 
       await expect(
-        controller.validateAndUseVoucher('INVALID', 'test@example.com'),
+        controller.validateAndUseVoucher({
+          code: 'INVALID',
+          email: 'test@example.com',
+        }),
       ).rejects.toThrow(UnauthorizedException);
     });
   });
@@ -97,8 +101,7 @@ describe('VouchersController', () => {
           code: voucher.code,
           discountPercentage: voucher.specialOffer.discountPercentage,
           expirationDate: voucher.expirationDate,
-          dateUsed: voucher.dateUsed,
-          specialOffer: voucher.specialOffer,
+          specialOfferName: voucher.specialOffer.name,
         })),
       );
     });

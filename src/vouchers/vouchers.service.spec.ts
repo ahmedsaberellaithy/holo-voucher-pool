@@ -1,21 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository /* , EntityManager */ } from 'typeorm';
+import { Repository } from 'typeorm';
 import { VouchersService } from './vouchers.service';
 import { VoucherCode } from './vouchers.entity';
 import { CustomersService } from '../customers/customers.service';
 import { SpecialOffersService } from '../special-offers/special-offers.service';
 import {
-  NotFoundException /* , UnauthorizedException */,
+  NotFoundException,
+  UnauthorizedException,
+  BadRequestException,
+  GoneException,
 } from '@nestjs/common';
-// import { Customer } from 'src/customers/customers.entity';
-// import { SpecialOffer } from 'src/special-offers/special-offers.entity';
+import { Customer } from 'src/customers/customers.entity';
+import { SpecialOffer } from 'src/special-offers/special-offers.entity';
 
 describe('VouchersService', () => {
   let service: VouchersService;
   let voucherRepository: Repository<VoucherCode>;
   let customersService: CustomersService;
-  // let specialOffersService: SpecialOffersService;
+  let specialOffersService: SpecialOffersService;
 
   const mockCustomer = {
     id: 1,
@@ -34,8 +37,10 @@ describe('VouchersService', () => {
     code: 'TEST123',
     customer: mockCustomer,
     specialOffer: mockSpecialOffer,
-    expirationDate: new Date('2024-12-31'),
+    expirationDate: new Date(new Date().setMonth(new Date().getMonth() + 1)),
     dateUsed: null,
+    customerId: 1,
+    specialOfferId: 1,
   };
 
   beforeEach(async () => {
@@ -80,7 +85,8 @@ describe('VouchersService', () => {
       getRepositoryToken(VoucherCode),
     );
     customersService = module.get<CustomersService>(CustomersService);
-    // specialOffersService = module.get<SpecialOffersService>(SpecialOffersService);
+    specialOffersService =
+      module.get<SpecialOffersService>(SpecialOffersService);
   });
 
   it('should be defined', () => {
@@ -88,111 +94,222 @@ describe('VouchersService', () => {
   });
 
   describe('generateVoucher', () => {
-    // it('should generate a new voucher successfully', async () => {
-    //   jest
-    //     .spyOn(customersService, 'findOneByEmail')
-    //     .mockResolvedValue(mockCustomer as Customer);
-    //   jest
-    //     .spyOn(specialOffersService, 'findOne')
-    //     .mockResolvedValue(mockSpecialOffer as SpecialOffer);
-    //   jest
-    //     .spyOn(voucherRepository.manager, 'transaction')
-    //     .mockImplementation((isolationLevel, runInTransaction) => {
-    //       const transactionManager = {
-    //         ...jest.createMockFromModule<EntityManager>('typeorm'),
-    //         create: jest.fn().mockReturnValue(mockVoucher),
-    //         save: jest.fn().mockResolvedValue(mockVoucher),
-    //       } as unknown as EntityManager;
-    //       return runInTransaction(transactionManager);
-    //     });
+    const expirationDate = new Date('2024-12-31');
 
-    //   const result = await service.generateVoucher('test@example.com', 1);
-    //   expect(result).toEqual(mockVoucher);
-    // });
-
-    it('should throw NotFoundException when customer not found', async () => {
+    it('should generate a new voucher successfully', async () => {
       jest
         .spyOn(customersService, 'findOneByEmail')
-        .mockRejectedValue(
-          new NotFoundException(
-            'Customer with email nonexistent@example.com not found',
-          ),
-        );
+        .mockResolvedValue(mockCustomer as Customer);
+      jest
+        .spyOn(specialOffersService, 'findOne')
+        .mockResolvedValue(mockSpecialOffer as SpecialOffer);
+      jest
+        .spyOn(voucherRepository, 'create')
+        .mockReturnValue(mockVoucher as VoucherCode);
+      jest
+        .spyOn(voucherRepository, 'save')
+        .mockResolvedValue(mockVoucher as VoucherCode);
+
+      const result = await service.generateVoucher(
+        'test@example.com',
+        1,
+        expirationDate,
+      );
+
+      expect(result).toEqual({
+        code: mockVoucher.code,
+        discountPercentage: mockSpecialOffer.discountPercentage,
+        expirationDate: mockVoucher.expirationDate,
+        specialOfferName: mockSpecialOffer.name,
+      });
+    });
+
+    it('should throw NotFoundException when customer not found', async () => {
+      jest.spyOn(customersService, 'findOneByEmail').mockResolvedValue(null);
 
       await expect(
-        service.generateVoucher('nonexistent@example.com', 1),
+        service.generateVoucher('nonexistent@example.com', 1, expirationDate),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when special offer not found', async () => {
+      jest
+        .spyOn(customersService, 'findOneByEmail')
+        .mockResolvedValue(mockCustomer as Customer);
+      jest.spyOn(specialOffersService, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        service.generateVoucher('test@example.com', 999, expirationDate),
       ).rejects.toThrow(NotFoundException);
     });
   });
 
-  // describe('validateAndUseVoucher', () => {
-  // it('should validate and use voucher successfully', async () => {
-  //   const validVoucher = { ...mockVoucher };
-  //   jest
-  //     .spyOn(voucherRepository.manager, 'transaction')
-  //     .mockImplementation((isolationLevel, runInTransaction) => {
-  //       const transactionManager = {
-  //         ...jest.createMockFromModule<EntityManager>('typeorm'),
-  //         findOne: jest.fn().mockResolvedValue(validVoucher),
-  //         save: jest
-  //           .fn()
-  //           .mockResolvedValue({ ...validVoucher, dateUsed: new Date() }),
-  //       } as unknown as EntityManager;
-  //       return runInTransaction(transactionManager);
-  //     });
+  describe('validateAndUseVoucher', () => {
+    it('should validate and use voucher successfully', async () => {
+      const transactionMock = jest.fn().mockImplementation(async (cb) => {
+        return await cb({
+          findOne: jest.fn().mockResolvedValue(mockVoucher),
+          save: jest.fn().mockResolvedValue({
+            id: 1,
+            code: 'TEST123',
+            customer: mockCustomer,
+            specialOffer: mockSpecialOffer,
+            expirationDate: new Date(
+              new Date().setMonth(new Date().getMonth() + 1),
+            ),
+            customerId: 1,
+            specialOfferId: 1,
+            dateUsed: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          }),
+        });
+      });
 
-  //   const result = await service.validateAndUseVoucher(
-  //     'TEST123',
-  //     'test@example.com',
-  //   );
-  //   expect(result).toBe(25.0);
-  // });
+      jest
+        .spyOn(voucherRepository.manager, 'transaction')
+        .mockImplementation(transactionMock);
+      jest
+        .spyOn(customersService, 'findOneByEmail')
+        .mockResolvedValue(mockCustomer as Customer);
+      jest
+        .spyOn(specialOffersService, 'findOne')
+        .mockResolvedValue(mockSpecialOffer as SpecialOffer);
 
-  //   it('should throw UnauthorizedException when voucher is already used', async () => {
-  //     const usedVoucher = { ...mockVoucher, dateUsed: new Date() };
-  //     jest
-  //       .spyOn(voucherRepository.manager, 'transaction')
-  //       .mockImplementation((isolationLevel, runInTransaction) => {
-  //         const transactionManager = {
-  //           findOne: jest.fn().mockResolvedValue(usedVoucher),
-  //         } as unknown as EntityManager;
-  //         return runInTransaction(transactionManager);
-  //       });
+      const result = await service.validateAndUseVoucher(
+        'TEST123',
+        'test@example.com',
+      );
+      expect(result).toBe(25.0);
+    });
 
-  //     await expect(
-  //       service.validateAndUseVoucher('TEST123', 'test@example.com'),
-  //     ).rejects.toThrow(UnauthorizedException);
-  //   });
+    it('should throw NotFoundException when voucher not found', async () => {
+      const transactionMock = jest.fn().mockImplementation(async (cb) => {
+        return await cb({
+          findOne: jest.fn().mockResolvedValue(null),
+        });
+      });
 
-  //   it('should throw UnauthorizedException when voucher is expired', async () => {
-  //     const expiredVoucher = {
-  //       ...mockVoucher,
-  //       expirationDate: new Date('2020-01-01'),
-  //     };
-  //     jest
-  //       .spyOn(voucherRepository.manager, 'transaction')
-  //       .mockImplementation((isolationLevel, runInTransaction) => {
-  //         const transactionManager = {
-  //           findOne: jest.fn().mockResolvedValue(expiredVoucher),
-  //         } as unknown as EntityManager;
-  //         return runInTransaction(transactionManager);
-  //       });
+      jest
+        .spyOn(voucherRepository.manager, 'transaction')
+        .mockImplementation(transactionMock);
 
-  //     await expect(
-  //       service.validateAndUseVoucher('TEST123', 'test@example.com'),
-  //     ).rejects.toThrow(UnauthorizedException);
-  //   });
-  // });
+      await expect(
+        service.validateAndUseVoucher('INVALID', 'test@example.com'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw UnauthorizedException when voucher belongs to another customer', async () => {
+      const differentCustomer = {
+        email: 'test2@example.com',
+        name: 'Test User 2',
+        id: 2,
+      };
+
+      const transactionMock = jest.fn().mockImplementation(async (cb) => {
+        return await cb({
+          findOne: jest.fn().mockResolvedValue(mockVoucher),
+        });
+      });
+
+      jest
+        .spyOn(voucherRepository.manager, 'transaction')
+        .mockImplementation(transactionMock);
+      jest
+        .spyOn(customersService, 'findOneByEmail')
+        .mockResolvedValue(differentCustomer as Customer);
+
+      await expect(
+        service.validateAndUseVoucher('TEST123', 'other@example.com'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw BadRequestException when voucher is already used', async () => {
+      const usedVoucher = {
+        id: 1,
+        code: 'TEST123',
+        customer: mockCustomer,
+        specialOffer: mockSpecialOffer,
+        expirationDate: new Date(
+          new Date().setMonth(new Date().getMonth() + 1),
+        ),
+        customerId: 1,
+        specialOfferId: 1,
+        dateUsed: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      };
+
+      const transactionMock = jest.fn().mockImplementation(async (cb) => {
+        return await cb({
+          findOne: jest.fn().mockResolvedValue(usedVoucher),
+        });
+      });
+
+      jest
+        .spyOn(voucherRepository.manager, 'transaction')
+        .mockImplementation(transactionMock);
+      jest
+        .spyOn(customersService, 'findOneByEmail')
+        .mockResolvedValue(mockCustomer as Customer);
+      jest
+        .spyOn(specialOffersService, 'findOne')
+        .mockResolvedValue(mockSpecialOffer as SpecialOffer);
+
+      await expect(
+        service.validateAndUseVoucher('TEST123', 'test@example.com'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw GoneException when voucher is expired', async () => {
+      const expiredVoucher = {
+        id: 1,
+        code: 'TEST123',
+        customer: mockCustomer,
+        specialOffer: mockSpecialOffer,
+        dateUsed: null,
+        customerId: 1,
+        specialOfferId: 1,
+        expirationDate: new Date('2020-01-01'),
+      };
+
+      const transactionMock = jest.fn().mockImplementation(async (cb) => {
+        return await cb({
+          findOne: jest.fn().mockResolvedValue(expiredVoucher),
+        });
+      });
+
+      jest
+        .spyOn(voucherRepository.manager, 'transaction')
+        .mockImplementation(transactionMock);
+      jest
+        .spyOn(customersService, 'findOneByEmail')
+        .mockResolvedValue(mockCustomer as Customer);
+      jest
+        .spyOn(specialOffersService, 'findOne')
+        .mockResolvedValue(mockSpecialOffer as SpecialOffer);
+
+      await expect(
+        service.validateAndUseVoucher('TEST123', 'test@example.com'),
+      ).rejects.toThrow(GoneException);
+    });
+  });
 
   describe('findAllByCustomerEmail', () => {
     it('should return all vouchers for a customer', async () => {
-      const mockVouchers = [mockVoucher];
+      jest
+        .spyOn(customersService, 'findOneByEmail')
+        .mockResolvedValue(mockCustomer as Customer);
       jest
         .spyOn(voucherRepository, 'find')
-        .mockResolvedValue(mockVouchers as VoucherCode[]);
+        .mockResolvedValue([mockVoucher] as VoucherCode[]);
 
       const result = await service.findAllByCustomerEmail('test@example.com');
-      expect(result).toEqual(mockVouchers);
+      expect(result).toEqual([mockVoucher]);
+    });
+
+    it('should throw NotFoundException when customer not found', async () => {
+      jest.spyOn(customersService, 'findOneByEmail').mockResolvedValue(null);
+
+      await expect(
+        service.findAllByCustomerEmail('nonexistent@example.com'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });
