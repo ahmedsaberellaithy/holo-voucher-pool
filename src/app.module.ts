@@ -6,8 +6,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomersModule } from './customers/customers.module';
 import { SpecialOffersModule } from './special-offers/special-offers.module';
 import { VouchersModule } from './vouchers/vouchers.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 const PROD_ENV_NAME = 'production';
+const DEFAULT_THROTTLE_TTL = 1000; // 1 second
+const DEFAULT_THROTTLE_LIMIT = 10; // 10 requests per second
 
 @Module({
   imports: [
@@ -24,6 +27,13 @@ const PROD_ENV_NAME = 'production';
         synchronize: process.env.NODE_ENV !== PROD_ENV_NAME,
       }),
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: parseInt(process.env.THROTTLE_TTL, 10) || DEFAULT_THROTTLE_TTL,
+        limit:
+          parseInt(process.env.THROTTLE_LIMIT, 10) || DEFAULT_THROTTLE_LIMIT,
+      },
+    ]),
     CustomersModule,
     SpecialOffersModule,
     VouchersModule,

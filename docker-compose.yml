@@ -29,6 +29,8 @@ services:
       PSQL_DB_USER: database_psql_user
       PSQL_DB_PASSWORD: 'database_pass_123'
       PSQL_DB_NAME: vouchers-db
+      THROTTLE_TTL: ${THROTTLE_TTL:-1000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-10}
     depends_on:
       - postgres
 

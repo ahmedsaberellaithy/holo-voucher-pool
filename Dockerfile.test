@@ -1,0 +1,17 @@
+FROM node:18-alpine
+
+WORKDIR /usr/src/app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy source
+COPY . .
+
+# Wait for postgres script
+COPY wait-for-postgres.sh /wait-for-postgres.sh
+RUN chmod +x /wait-for-postgres.sh
+
+# Run tests
+CMD ["/wait-for-postgres.sh", "postgres_test", "npm", "run", "test:e2e"] 

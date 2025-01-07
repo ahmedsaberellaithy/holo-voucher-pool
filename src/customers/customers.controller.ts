@@ -30,7 +30,7 @@ export class CustomersController {
     type: CustomerResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  findOne(@Param('email') email: string): Promise<CustomerResponseDto> {
+  async findOne(@Param('email') email: string): Promise<CustomerResponseDto> {
     return this.customersService.findOneByEmail(email);
   }
 }

@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  postgres_test:
+    image: postgres:15
+    container_name: postgres-test-db
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_db
+    ports:
+      - "5433:5432"  # Different port from dev/prod
+    tmpfs: /var/lib/postgresql/data  # Use tmpfs for faster testing
+
+  test_runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      NODE_ENV: test
+      PSQL_DB_HOST: postgres_test
+      PSQL_DB_PORT: 5432
+      PSQL_DB_USER: test_user
+      PSQL_DB_PASSWORD: test_password
+      PSQL_DB_NAME: test_db
+    depends_on:
+      - postgres_test
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules 
