@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomerResponseDto } from './dto/customer-response.dto';
+import { Customer } from './customers.entity';
 
 @ApiTags('customers')
 @Controller('customers')
@@ -16,10 +17,17 @@ export class CustomersController {
     description: 'Customer created successfully',
     type: CustomerResponseDto,
   })
-  create(
+  async create(
     @Body() createCustomerDto: CreateCustomerDto,
   ): Promise<CustomerResponseDto> {
-    return this.customersService.create(createCustomerDto);
+    const customer = await this.customersService.create(createCustomerDto);
+
+    // Map the customer entity to the response DTO without the updated at and created at fields
+    return {
+      id: customer.id,
+      name: customer.name,
+      email: customer.email,
+    };
   }
 
   @Get(':email')
@@ -31,6 +39,14 @@ export class CustomersController {
   })
   @ApiResponse({ status: 404, description: 'Customer not found' })
   async findOne(@Param('email') email: string): Promise<CustomerResponseDto> {
-    return this.customersService.findOneByEmail(email);
+    const customer: Customer =
+      await this.customersService.findOneByEmail(email);
+
+    // Map the customer entity to the response DTO without the updated at and created at fields
+    return {
+      id: customer.id,
+      name: customer.name,
+      email: customer.email,
+    };
   }
 }

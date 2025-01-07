@@ -3,7 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CustomersService } from './customers.service';
 import { Customer } from './customers.entity';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { EmailAlreadyExistsException } from './errors/EmailAlreadyExistsException';
 
 describe('CustomersService', () => {
   let service: CustomersService;
@@ -55,6 +56,30 @@ describe('CustomersService', () => {
         name: 'Test User',
         email: 'test@example.com',
       });
+    });
+
+    it('should throw BadRequestException when name is empty', async () => {
+      await expect(
+        service.create({ name: '', email: 'test@example.com' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when email is empty', async () => {
+      await expect(
+        service.create({ name: 'Test User', email: '' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw EmailAlreadyExistsException when email already exists', async () => {
+      jest.spyOn(repository, 'create').mockReturnValue(mockCustomer);
+      jest.spyOn(repository, 'save').mockRejectedValue({ code: '23505' });
+
+      await expect(
+        service.create({
+          name: 'Test User',
+          email: 'test@example.com',
+        }),
+      ).rejects.toThrow(EmailAlreadyExistsException);
     });
   });
 

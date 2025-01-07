@@ -1,4 +1,4 @@
-version: '3.8'
+# Test Container configuration
 services:
   postgres_test:
     image: postgres:15
@@ -22,8 +22,19 @@ services:
       PSQL_DB_USER: test_user
       PSQL_DB_PASSWORD: test_password
       PSQL_DB_NAME: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_db
     depends_on:
       - postgres_test
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules 
+    command: >
+      sh -c "
+        npm run test:e2e;
+        EXIT_CODE=$$?;
+        echo '=== Cleaning Up ===';
+        docker-compose -f docker-compose.test.yml down -v;
+        exit $$EXIT_CODE
+      " 

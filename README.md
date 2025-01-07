@@ -88,18 +88,31 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
-## Run tests
+## Run tests (Unit tests)
 
 ```bash
 # unit tests
 $ npm run test
 
-# e2e tests
-$ npm run test:e2e
-
 # test coverage
 $ npm run test:cov
 ```
+
+## Run tests (E2E using a test container for the Database)
+
+This test container will spin up a PostgreSQL database and run the end to end sequence of tests against it.
+
+```bash
+# Start the testing environment
+npm run test:ci
+```
+
+The test:ci command will:
+
+1. Start the test containers
+1. Run all E2E tests
+1. Display test results
+1. Automatically clean up by removing db container
 
 ## Docker Setup
 
