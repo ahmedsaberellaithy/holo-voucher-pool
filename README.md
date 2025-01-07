@@ -90,16 +90,12 @@ docker-compose -f docker-compose.dev.yml down
 
 - Hot reload enabled
 - Source code mounted as volume
-- Swagger API docs available at `http://localhost:3045/api-docs`
+- Swagger API docs
 - Node modules mounted as volume
 
 #### API Documentation
 
-The API documentation (Swagger UI) is available at:
-
-```http
-http://localhost:3045/api-docs
-```
+The API documentation (Swagger UI) is available at: `http://localhost:3045/api-docs`
 
 Note: The API documentation is only available in development mode (`NODE_ENV=development`).
 
